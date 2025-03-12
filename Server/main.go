@@ -2,23 +2,56 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"net/http/httputil"
+	"os"
+	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
-	port := 8000
-	fmt.Println("Listening at http://127.0.0.1:8000")
-	http.HandleFunc("/", homePage)
-	err := http.ListenAndServe(fmt.Sprint("127.0.0.1:", port), nil)
+	err := godotenv.Load()
 	if err != nil {
-		fmt.Print(err)
+		log.Fatal("Error loading .env file")
+		return
 	}
-	fmt.Println("Hello World!")
+
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+
+	file := os.DirFS("../Frontend/dist")
+	fs := http.FS(file)
+	handler := http.FileServer(fs)
+
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		endPointLogging(r)
+
+		handler.ServeHTTP(w, r)
+	})
+	http.HandleFunc("/Login", func(w http.ResponseWriter, r *http.Request) {
+		endPointLogging(r)
+
+		if r.Method == http.MethodPost {
+
+			fmt.Print("hello world!\n", r.FormValue("EMAIL"), "\n", r.FormValue("PASSWORD"))
+		}
+
+		http.ServeFileFS(w, r, file, "index.html")
+	})
+
+	fmt.Printf("http://127.0.0.1:%d\n", port)
+	http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil)
 }
 
-func homePage(res http.ResponseWriter, req *http.Request) {
-	res.WriteHeader(http.StatusOK)
-	res.Header().Add("Context-type", "text/html")
-	res.Write([]byte("<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Document</title></head><body><p>Hello World!</p><hr /></body></html>"))
-	return
+func endPointLogging(r *http.Request) {
+	res, err := httputil.DumpRequest(r, true)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(string(res))
+}
+
+func Login() {
+
 }
